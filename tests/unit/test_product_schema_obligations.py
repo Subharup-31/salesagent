@@ -497,7 +497,7 @@ class TestAuthErrorResponseSchema:
 
         err = AdCPAuthenticationError("Authentication required by tenant policy")
         err_dict = err.to_dict()
-        assert err_dict["error_code"] == "AUTH_REQUIRED"
+        assert err_dict["error_code"] == "AUTH_TOKEN_INVALID"
         assert "Authentication required" in err_dict["message"]
 
 
@@ -1657,10 +1657,7 @@ class TestPublisherDomainsPortfolio:
             ],
         )
         # Extract domains from publisher_properties (portfolio assembly logic)
-        domains = sorted(
-            pp.root.publisher_domain if hasattr(pp, "root") else pp.publisher_domain
-            for pp in product.publisher_properties
-        )
+        domains = sorted(pp.root.publisher_domain for pp in product.publisher_properties)
         assert domains == ["news.example.com", "sports.example.com"]
 
 

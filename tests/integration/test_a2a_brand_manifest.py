@@ -15,6 +15,7 @@ from a2a.types import SendMessageRequest, Task
 
 from src.a2a_server.adcp_a2a_server import AdCPRequestHandler
 from src.core.resolved_identity import ResolvedIdentity
+from tests.factories.principal import PrincipalFactory
 from tests.utils.a2a_helpers import create_a2a_message_with_skill
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_db]
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def _make_identity(sample_tenant, sample_principal) -> ResolvedIdentity:
     """Build a ResolvedIdentity for A2A tests."""
-    return ResolvedIdentity(
+    return PrincipalFactory.make_identity(
         principal_id=sample_principal["principal_id"],
         tenant_id=sample_tenant["tenant_id"],
         tenant=sample_tenant,
@@ -124,11 +125,16 @@ async def test_get_products_brand_manifest_translated_to_brand(sample_tenant, sa
 
 
 @pytest.mark.asyncio
-async def test_get_products_neither_brief_nor_brand_rejected(sample_tenant, sample_principal, sample_products):
-    """Test that requests with neither brief nor brand are rejected.
+async def test_get_products_neither_brief_nor_brand_defaults_to_wholesale(
+    sample_tenant, sample_principal, sample_products
+):
+    """Empty get_products params default to wholesale mode via the pre-v3 shim.
 
-    The handler raises AdCPValidationError which is translated to
-    InvalidParamsError at the A2A boundary via _adcp_to_a2a_error().
+    A request with neither brief nor brand and no buying_mode is defaulted to
+    wholesale mode ("buyer wants raw inventory, no curation"), which legitimately
+    accepts the request and returns a catalog rather than rejecting it. A
+    deliberate deviation from the spec's "SHOULD default to brief" language,
+    kept to preserve v2 client backward compatibility.
     """
     handler = AdCPRequestHandler()
     identity = _make_identity(sample_tenant, sample_principal)

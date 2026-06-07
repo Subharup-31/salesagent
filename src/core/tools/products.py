@@ -172,16 +172,16 @@ def _build_refinement_applied_unable(
         # Refine3 (proposal). Pull the inner variant via .root, then read scope and the
         # scope-specific id field. RefinementApplied mirrors the same scope-keyed shape.
         inner = getattr(entry, "root", entry)
-        scope = getattr(inner, "scope", None)
+        scope = inner.scope
         payload: dict[str, Any] = {
             "scope": scope,
             "status": "unable",
             "notes": _REFINE_NOT_PERSISTED_NOTES,
         }
         if scope == "product":
-            payload["product_id"] = getattr(inner, "product_id", None)
+            payload["product_id"] = inner.product_id
         elif scope == "proposal":
-            payload["proposal_id"] = getattr(inner, "proposal_id", None)
+            payload["proposal_id"] = inner.proposal_id
         items.append(RefinementApplied.model_validate(payload))
     return items
 
@@ -215,11 +215,6 @@ async def _get_products_impl(
     # construction (the create_get_products_request helper feeds this path) and raises
     # before _impl sees the request. Trust that single layer here.
     mode = resolve_enum_value(req.buying_mode)
-
-    # Wholesale and refine modes legitimately omit brief/brand/filters; only brief mode
-    # needs a discovery criterion, and the validator already enforces brief presence there.
-    if mode == "brief" and not req.brief and not req.brand and not req.filters:
-        raise AdCPValidationError("At least one of 'brief', 'brand', or 'filters' is required")
 
     # Extract identity fields
     if identity is None:
@@ -948,7 +943,7 @@ async def get_products(
     # Note: GetProductsRequest is now a flat class (not RootModel), so pass req directly
     response = await _get_products_impl(req, identity, pre_v3_defaulted=pre_v3_defaulted)
 
-    # Apply outbound version_compat at transport boundary (parity with A2A line 1453 and REST line 190).
+    # Apply outbound version_compat at transport boundary (parity with the A2A and REST boundaries).
     structured = apply_version_compat("get_products", response, adcp_version)
     return ToolResult(content=str(response), structured_content=structured)
 

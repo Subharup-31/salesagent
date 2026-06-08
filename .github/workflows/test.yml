@@ -211,9 +211,11 @@ jobs:
   bdd-tests:
     name: BDD Tests
     runs-on: ubuntu-latest
-    # 4265 BDD tests run sequentially; previous 15-minute limit was tight (one
-    # canceled run hit 15m17s at ~95% complete) so the suite needs headroom.
-    timeout-minutes: 25
+    # The BDD suite runs sequentially and has grown with new use-case scenarios
+    # (UC-001 buying_mode + UC-002/011); a recent run completed at 24m53s, leaving
+    # ~7s of headroom under the prior 25-minute limit. Bumped to 35 so runner-speed
+    # variance doesn't flake the job into a timeout.
+    timeout-minutes: 35
     # BDD scenarios (tests/bdd/) use the integration_db fixture (Flask
     # test_client + real PostgreSQL) — same infra model as integration-tests,
     # NOT the full docker-compose stack. This job mirrors integration-tests.

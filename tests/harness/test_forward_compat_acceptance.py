@@ -12,8 +12,10 @@ contract: accept now, handle later.
 
 Each payload is tested through all three transport paths:
 - MCP: Client(mcp) → middleware (normalize + strip + deep-strip) → TypeAdapter → tool
-- A2A: normalize_request_params → model_validate(extra='ignore') → _impl
-- REST/direct: normalize_request_params → model_validate(extra='ignore') → _impl
+- A2A: normalize_request_params → create_get_products_request (shim) → _impl
+- REST: create_get_products_request (shim) → _impl
+The shim defaults buying_mode for pre-v3 clients; direct model_validate is exercised
+separately (TestDirectModelAcceptance) to isolate model-level field acceptance.
 """
 
 from __future__ import annotations
@@ -40,7 +42,9 @@ CURRENT_SPEC_GET_PRODUCTS = {
 FUTURE_TOP_LEVEL_FIELD = {
     "brief": "video ads",
     "brand": {"domain": "acme.com"},
-    "adcp_major_version": 5,  # New spec field, not in our signature
+    # adcp_major_version became a real field in adcp 4.3, so it no longer exercises the
+    # unknown-top-level path. Use a name the library will never define.
+    "future_unknown_top_level": 5,
 }
 
 # Future spec — extra nested field inside brand
@@ -258,26 +262,32 @@ class TestA2aForwardCompat:
         ids=lambda x: x if isinstance(x, str) else "",
     )
     def test_normalize_then_model_validate(self, label: str, payload: dict):
-        """A2A path: normalize → strip unknown top-level → model_validate → accepted.
+        """A2A path: normalize → create_get_products_request (shim) → accepted.
 
-        Note: Nested unknowns in library types (BrandReference, AccountReference)
-        are rejected even in production because the adcp library uses extra='forbid'.
-        Deep-strip handles this on MCP only. A2A tests focus on normalization
-        of deprecated fields and top-level stripping.
+        The real A2A path is _handle_get_products_skill → get_products_raw →
+        create_get_products_request, which defaults buying_mode for pre-v3 clients.
+        A bare model_validate bypasses that shim and rejects the (valid) pre-v3
+        payload, so the test routes through the shim to mirror production.
         """
-        from src.core.schemas import GetProductsRequest
+        from src.core.schema_helpers import create_get_products_request
 
-        # Step 1: Normalize (same as A2A handler does)
+        # Step 1: Normalize (same as the A2A handler does before calling the tool)
         result = normalize_request_params("get_products", dict(payload))
         normalized = result.params
 
-        # Step 2: Strip unknown top-level params (A2A handlers pop unknowns)
-        known_fields = set(GetProductsRequest.model_fields.keys())
-        clean = {k: v for k, v in normalized.items() if k in known_fields}
-
-        # Step 3: model_validate should not raise
-        req = GetProductsRequest.model_validate(clean)
-        assert req.brief == payload.get("brief", "")
+        # Step 2: Build via the production shim (defaults buying_mode for pre-v3)
+        req, _ = create_get_products_request(
+            brief=normalized.get("brief", ""),
+            brand=normalized.get("brand"),
+            filters=normalized.get("filters"),
+            property_list=normalized.get("property_list"),
+            context=normalized.get("context"),
+            buying_mode=normalized.get("buying_mode"),
+            refine=normalized.get("refine"),
+            adcp_version=normalized.get("adcp_version"),
+        )
+        # Shim maps brief="" → None
+        assert req.brief == (payload.get("brief") or None)
 
 
 # ---------------------------------------------------------------------------
@@ -286,22 +296,28 @@ class TestA2aForwardCompat:
 
 
 class TestDirectModelAcceptance:
-    """Direct Pydantic model construction — covers REST transport and internal callers."""
+    """Direct Pydantic model construction — isolates model-level field acceptance.
+
+    Production REST/A2A route client input through create_get_products_request (which
+    defaults buying_mode for pre-v3 clients); these cases supply buying_mode explicitly
+    to test the model's acceptance of the surrounding field shapes (brand, account, context).
+    """
 
     @pytest.mark.parametrize(
         "label,params",
         [
-            ("minimal", {"brief": "test"}),
-            ("with_brand", {"brief": "test", "brand": {"domain": "acme.com"}}),
-            ("with_account_id", {"brief": "test", "account": {"account_id": "acc-1"}}),
+            ("minimal", {"brief": "test", "buying_mode": "brief"}),
+            ("with_brand", {"brief": "test", "buying_mode": "brief", "brand": {"domain": "acme.com"}}),
+            ("with_account_id", {"brief": "test", "buying_mode": "brief", "account": {"account_id": "acc-1"}}),
             (
                 "with_account_natural_key",
                 {
                     "brief": "test",
+                    "buying_mode": "brief",
                     "account": {"brand": {"domain": "acme.com"}, "operator": "agency.com"},
                 },
             ),
-            ("with_context", {"brief": "test", "context": {"session_id": "sess-1"}}),
+            ("with_context", {"brief": "test", "buying_mode": "brief", "context": {"session_id": "sess-1"}}),
         ],
         ids=lambda x: x if isinstance(x, str) else "",
     )
@@ -470,11 +486,11 @@ class TestDataPreservationE2E:
             # Intercept _get_products_impl to capture the request
             original_impl = None
 
-            async def capturing_impl(req, identity=None):
+            async def capturing_impl(req, identity=None, pre_v3_defaulted=False):
                 captured_req["brand"] = req.brand
                 captured_req["brief"] = req.brief
                 # Call original to produce a valid response
-                return await original_impl(req, identity)
+                return await original_impl(req, identity, pre_v3_defaulted=pre_v3_defaulted)
 
             with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
                 for p in patches:
@@ -521,10 +537,10 @@ class TestDataPreservationE2E:
             patches = _get_products_patches()
             original_impl = None
 
-            async def capturing_impl(req, identity=None):
+            async def capturing_impl(req, identity=None, pre_v3_defaulted=False):
                 captured_req["context"] = req.context
                 captured_req["brief"] = req.brief
-                return await original_impl(req, identity)
+                return await original_impl(req, identity, pre_v3_defaulted=pre_v3_defaulted)
 
             with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
                 for p in patches:
@@ -571,11 +587,11 @@ class TestDataPreservationE2E:
             patches = _get_products_patches()
             original_impl = None
 
-            async def capturing_impl(req, identity=None):
+            async def capturing_impl(req, identity=None, pre_v3_defaulted=False):
                 captured_req["brief"] = req.brief
                 captured_req["brand"] = req.brand
                 captured_req["context"] = req.context
-                return await original_impl(req, identity)
+                return await original_impl(req, identity, pre_v3_defaulted=pre_v3_defaulted)
 
             with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
                 for p in patches:
@@ -624,10 +640,10 @@ class TestErrorPropagation:
     """
 
     def test_business_logic_error_propagates_through_middleware(self):
-        """_impl raises AdCPValidationError → buyer sees error, not success.
+        """Cross-mode validation error → buyer sees error, not success.
 
-        get_products requires at least one of brief/brand/filters.
-        Sending none should return a clear error, not be silently accepted.
+        buying_mode='brief' with no brief violates the cross-mode invariant. The
+        deep-strip retry must not swallow this validation error — it must reach the buyer.
         """
         from fastmcp import Client
 
@@ -642,10 +658,10 @@ class TestErrorPropagation:
                     async with Client(mcp) as client:
                         result = await client.call_tool(
                             "get_products",
-                            {},  # No brief, no brand, no filters → _impl rejects
+                            {"buying_mode": "brief"},  # brief mode without a brief → validator rejects
                             raise_on_error=False,
                         )
-                        assert result.is_error, "Empty get_products should return an error, not succeed silently"
+                        assert result.is_error, "brief-mode request without a brief should error, not succeed silently"
                         # The error should mention what's missing
                         error_text = str(result.content) if result.content else ""
                         assert (

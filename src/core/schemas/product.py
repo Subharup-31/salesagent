@@ -158,6 +158,16 @@ class Product(LibraryProduct):
         if "formats" in data:
             data["format_ids"] = data.pop("formats")
 
+        # Strip null optional fields from each nested format_id (e.g. duration_ms on a
+        # display format). The get-products-response schema types width/height/duration_ms
+        # as numbers, so emitting an explicit null fails schema validation for compliance
+        # clients — AdCP wants the field absent, not null.
+        if isinstance(data.get("format_ids"), list):
+            data["format_ids"] = [
+                {k: v for k, v in fmt.items() if v is not None} if isinstance(fmt, dict) else fmt
+                for fmt in data["format_ids"]
+            ]
+
         # Remove null fields per AdCP spec
         # Only truly required fields should always be present
         core_fields = {

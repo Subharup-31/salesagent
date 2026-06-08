@@ -14,6 +14,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.schemas import GetProductsRequest
+from src.core.validation_helpers import extract_buying_mode_suggestion
 
 # ---------------------------------------------------------------------------
 # Cross-mode invariants (Layer 1.2)
@@ -113,6 +114,51 @@ class TestCrossModeViolations:
     def test_refine_mode_without_refine_array_rejected(self):
         with pytest.raises(ValidationError, match="refine array is required"):
             GetProductsRequest(buying_mode="refine")
+
+
+# Each cross-mode violation → the actionable buyer suggestion extract_buying_mode_suggestion returns.
+# Pins the buyer-facing wire contract. The "buying_mode must be one of" suggestion is unreachable via
+# construction (the library's enum validator preempts the custom check), so it is not covered here.
+_SUGGESTION_CASES = [
+    (
+        {"buying_mode": None},
+        "Provide buying_mode='brief' with a brief, 'wholesale' for raw inventory, or 'refine' with a refine array.",
+    ),
+    (
+        {"buying_mode": "brief"},
+        "Provide a brief describing your campaign requirements, or use buying_mode='wholesale' for raw inventory.",
+    ),
+    (
+        {"buying_mode": "brief", "brief": "video ads", "refine": [{"scope": "request", "ask": "more video"}]},
+        "Remove refine, or use buying_mode='refine' to iterate on a previous response.",
+    ),
+    (
+        {"buying_mode": "wholesale", "brief": "video ads"},
+        "Remove brief, or use buying_mode='brief' to discover via a brief.",
+    ),
+    (
+        {"buying_mode": "wholesale", "refine": [{"scope": "request", "ask": "more video"}]},
+        "Remove refine, or use buying_mode='refine' to iterate on a previous response.",
+    ),
+    (
+        {"buying_mode": "refine", "brief": "video ads", "refine": [{"scope": "request", "ask": "more video"}]},
+        "Remove brief, or use buying_mode='brief' to discover via a brief.",
+    ),
+    (
+        {"buying_mode": "refine"},
+        "Provide a refine array with at least one entry, or use a different buying_mode.",
+    ),
+]
+
+
+class TestBuyingModeSuggestions:
+    """Each cross-mode violation maps to its actionable buyer suggestion (pins the wire contract)."""
+
+    @pytest.mark.parametrize(("kwargs", "expected_suggestion"), _SUGGESTION_CASES)
+    def test_violation_maps_to_suggestion(self, kwargs, expected_suggestion):
+        with pytest.raises(ValidationError) as exc_info:
+            GetProductsRequest(**kwargs)
+        assert extract_buying_mode_suggestion(exc_info.value) == expected_suggestion
 
 
 # ---------------------------------------------------------------------------

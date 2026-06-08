@@ -303,19 +303,22 @@ def _ensure_default_principal(db_session: Any, tenant_id: str) -> None:
     if not token:
         return
 
-    existing_principal = db_session.scalars(select(Principal).filter_by(tenant_id=tenant_id)).first()
-    if existing_principal:
+    from src.core.database.repositories import PrincipalRepository
+
+    repo = PrincipalRepository(db_session, tenant_id)
+    if repo.get_any() is not None:
         logger.debug("Tenant %s already has a principal, skipping seed", tenant_id)
         return
 
-    principal = Principal(
-        tenant_id=tenant_id,
-        principal_id="default_principal",
-        name="Default Principal",
-        platform_mappings={"mock": {"advertiser_id": "mock-default"}},
-        access_token=token,
+    repo.create(
+        Principal(
+            tenant_id=tenant_id,
+            principal_id="default_principal",
+            name="Default Principal",
+            platform_mappings={"mock": {"advertiser_id": "mock-default"}},
+            access_token=token,
+        )
     )
-    db_session.add(principal)
     db_session.commit()
     logger.info("Seeded default principal for tenant %s (token len=%d)", tenant_id, len(token))
 
@@ -346,12 +349,16 @@ def _ensure_default_storyboard_fixtures(db_session: Any, tenant_id: str) -> None
     if not os.environ.get("ADCP_AUTH_TOKEN"):
         return
 
+    from src.core.database.repositories import (
+        CurrencyLimitRepository,
+        ProductRepository,
+        PropertyTagRepository,
+    )
+
     # Step 1: CurrencyLimit for USD (idempotent)
-    existing_currency = db_session.scalars(
-        select(CurrencyLimit).filter_by(tenant_id=tenant_id, currency_code="USD")
-    ).first()
-    if not existing_currency:
-        db_session.add(
+    currency_repo = CurrencyLimitRepository(db_session, tenant_id)
+    if currency_repo.get_for_currency("USD") is None:
+        currency_repo.create(
             CurrencyLimit(
                 tenant_id=tenant_id,
                 currency_code="USD",
@@ -361,11 +368,9 @@ def _ensure_default_storyboard_fixtures(db_session: Any, tenant_id: str) -> None
         )
 
     # Step 2: PropertyTag for "all_inventory" (idempotent)
-    existing_tag = db_session.scalars(
-        select(PropertyTag).filter_by(tenant_id=tenant_id, tag_id="all_inventory")
-    ).first()
-    if not existing_tag:
-        db_session.add(
+    tag_repo = PropertyTagRepository(db_session, tenant_id)
+    if tag_repo.get_by_tag_id("all_inventory") is None:
+        tag_repo.create(
             PropertyTag(
                 tenant_id=tenant_id,
                 tag_id="all_inventory",
@@ -375,43 +380,42 @@ def _ensure_default_storyboard_fixtures(db_session: Any, tenant_id: str) -> None
         )
 
     # Step 3: Product (idempotent — guard on product_id)
-    existing_product = db_session.scalars(
-        select(Product).filter_by(tenant_id=tenant_id, product_id="default_display")
-    ).first()
-    if existing_product:
+    product_repo = ProductRepository(db_session, tenant_id)
+    if product_repo.get_by_id("default_display") is not None:
         db_session.commit()
         return
 
     from decimal import Decimal
 
-    product = Product(
-        tenant_id=tenant_id,
-        product_id="default_display",
-        name="Default Display",
-        description="Default display product seeded so storyboard get_products scenarios succeed",
-        # AdCP get-products-response schema requires width/height as integers on
-        # display format_ids; omitting them surfaces as a schema-validation FAIL on
-        # refine_products / inventory_list_targeting / inventory_list_no_match.
-        format_ids=[
-            {
-                "agent_url": "https://creative.adcontextprotocol.org",
-                "id": "display_300x250",
-                "width": 300,
-                "height": 250,
-            }
-        ],
-        targeting_template={"geo_countries": ["US"]},
-        delivery_type="guaranteed",
-        property_tags=["all_inventory"],
-        # AdCP product schema requires delivery_measurement.notes as a string when
-        # delivery_measurement is set; default "" not "provider only" — the storyboard
-        # validator surfaces this as "/products/0/delivery_measurement/notes: must be string".
-        delivery_measurement={"provider": "publisher", "notes": "Publisher-reported delivery metrics"},
+    product_repo.create(
+        Product(
+            tenant_id=tenant_id,
+            product_id="default_display",
+            name="Default Display",
+            description="Default display product seeded so storyboard get_products scenarios succeed",
+            # AdCP get-products-response schema requires width/height as integers on
+            # display format_ids; omitting them surfaces as a schema-validation FAIL on
+            # refine_products / inventory_list_targeting / inventory_list_no_match.
+            format_ids=[
+                {
+                    "agent_url": "https://creative.adcontextprotocol.org",
+                    "id": "display_300x250",
+                    "width": 300,
+                    "height": 250,
+                }
+            ],
+            targeting_template={"geo_countries": ["US"]},
+            delivery_type="guaranteed",
+            property_tags=["all_inventory"],
+            # AdCP product schema requires delivery_measurement.notes as a string when
+            # delivery_measurement is set; default "" not "provider only" — the storyboard
+            # validator surfaces this as "/products/0/delivery_measurement/notes: must be string".
+            delivery_measurement={"provider": "publisher", "notes": "Publisher-reported delivery metrics"},
+        )
     )
-    db_session.add(product)
 
     # Step 4: PricingOption (CPM, fixed, $10)
-    db_session.add(
+    product_repo.create_pricing_option(
         PricingOption(
             tenant_id=tenant_id,
             product_id="default_display",

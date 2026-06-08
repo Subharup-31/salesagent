@@ -172,3 +172,19 @@ class ProductRepository:
                 )
             ).all()
         )
+
+    def create_pricing_option(self, pricing_option: PricingOption) -> PricingOption:
+        """Persist a new pricing option within this tenant. Does NOT commit.
+
+        PricingOption is a Product child, so its persistence is folded into this
+        repository rather than a separate PricingOptionRepository.
+        Raises ValueError if pricing_option.tenant_id does not match the repository.
+        """
+        if pricing_option.tenant_id != self._tenant_id:
+            raise ValueError(
+                f"Tenant mismatch: pricing_option.tenant_id={pricing_option.tenant_id!r} "
+                f"!= repository tenant_id={self._tenant_id!r}"
+            )
+        self._session.add(pricing_option)
+        self._session.flush()
+        return pricing_option

@@ -35,3 +35,17 @@ class CurrencyLimitRepository:
             currency_code=currency_code,
         )
         return self._session.scalars(stmt).first()
+
+    def create(self, currency_limit: CurrencyLimit) -> CurrencyLimit:
+        """Persist a new currency limit within this tenant. Does NOT commit.
+
+        Raises ValueError if currency_limit.tenant_id does not match the repository.
+        """
+        if currency_limit.tenant_id != self._tenant_id:
+            raise ValueError(
+                f"Tenant mismatch: currency_limit.tenant_id={currency_limit.tenant_id!r} "
+                f"!= repository tenant_id={self._tenant_id!r}"
+            )
+        self._session.add(currency_limit)
+        self._session.flush()
+        return currency_limit

@@ -667,12 +667,14 @@ async def _sync_accounts_impl(
         action_counts[act] = action_counts.get(act, 0) + 1
     audit_logger.log_info(f"sync_accounts completed: {action_counts} (dry_run={dry_run}, principal={principal_id})")
 
-    # AdCP sync-accounts-response schema requires dry_run as boolean (not null) and
-    # rejects null for context. dry_run was previously `dry_run if dry_run else None`,
-    # which serialized `null` when dry_run=False and tripped the storyboard validator's
-    # "/dry_run: must be boolean" check. Always emit the bool value; only include
-    # context when the request supplied one (omitted-vs-null distinction).
-    response_kwargs: dict[str, Any] = {"accounts": results, "dry_run": bool(dry_run)}
+    # Per BR-RULE-062 / BR-UC-011: dry_run appears in the response only when true; a false
+    # or omitted dry_run is absent (the gate asserts "the response does not include a
+    # dry_run field"). The None default is dropped by exclude_none serialization — the MCP
+    # wrapper routes through model_dump(mode="json") so it does not leak `null` through
+    # pydantic_core. context is likewise included only when the request supplied one.
+    response_kwargs: dict[str, Any] = {"accounts": results}
+    if dry_run:
+        response_kwargs["dry_run"] = True
     if req.context is not None:
         response_kwargs["context"] = req.context
     return SyncAccountsResponse(**response_kwargs)
@@ -729,7 +731,7 @@ async def sync_accounts(
     identity = (await ctx.get_state("identity")) if isinstance(ctx, Context) else None
     response = await _sync_accounts_impl(req, identity)
 
-    return ToolResult(content=str(response), structured_content=response)
+    return ToolResult(content=str(response), structured_content=response.model_dump(mode="json"))
 
 
 # ---------------------------------------------------------------------------

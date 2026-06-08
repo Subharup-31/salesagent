@@ -17,7 +17,6 @@ Usage (internal — called by BaseTestEnv.call_via)::
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from tests.harness.transport import Transport, TransportResult
@@ -44,7 +43,9 @@ def _envelope_from_adcp_error(exc: Exception) -> dict[str, Any] | None:
           ``AdCPError`` as ``_wire_error_envelope`` by
           ``tests.harness._base._envelope_to_adcp_error``.
         - REST: the HTTP response body, captured directly by RestDispatcher.
-        - MCP: the JSON string in ``ToolError``, parsed by McpDispatcher.
+        - MCP: the envelope JSON from the ``ToolError``, unwrapped to a
+          reconstructed ``AdCPError`` with ``_wire_error_envelope`` stashed by
+          ``tests.harness._base._unwrap_mcp_tool_error``.
     """
     from src.core.exceptions import AdCPError, build_two_layer_error_envelope
 
@@ -67,21 +68,6 @@ def _wire_envelope_from_exception(exc: Exception) -> dict[str, Any] | None:
     if isinstance(real_wire, dict):
         return real_wire
     return _envelope_from_adcp_error(exc)
-
-
-def _envelope_from_mcp_error(exc: Exception) -> dict[str, Any] | None:
-    """Extract the wire envelope from an MCP ToolError's JSON string."""
-    from fastmcp.exceptions import ToolError
-
-    if not isinstance(exc, ToolError):
-        return None
-    try:
-        envelope = json.loads(str(exc))
-        if isinstance(envelope, dict) and "errors" in envelope:
-            return envelope
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return None
 
 
 class ImplDispatcher:
@@ -180,7 +166,7 @@ class McpDispatcher:
         except Exception as exc:
             return TransportResult(
                 error=exc,
-                wire_error_envelope=_envelope_from_mcp_error(exc),
+                wire_error_envelope=_wire_envelope_from_exception(exc),
             )
         return TransportResult(payload=payload, envelope={"transport": "mcp"})
 

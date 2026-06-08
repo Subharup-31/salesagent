@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.validation_helpers import _BUYING_MODE_SUGGESTIONS
 from tests.factories import (
     PrincipalFactory,
     TenantFactory,
@@ -23,6 +24,7 @@ from tests.factories import (
 )
 from tests.harness.product import ProductEnv
 from tests.harness.transport import Transport
+from tests.helpers import assert_envelope_shape
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_db]
 
@@ -179,7 +181,7 @@ def test_pre_v3_client_without_buying_mode_defaults_to_brief_via_rest(env):
 
 
 def test_v3_client_without_buying_mode_rejected_via_rest(env):
-    """A v3 REST client must include buying_mode; the request is rejected."""
+    """A v3 REST client must include buying_mode; the request is rejected with the two-layer envelope."""
     response = env._run_rest_request(
         "/api/v1/products",
         brief="display ads",
@@ -190,5 +192,34 @@ def test_v3_client_without_buying_mode_rejected_via_rest(env):
     # AdCPValidationError (400). Pin to == 400 so a server-side 500 (crash) regression
     # surfaces here instead of passing under a generic ">= 400" check.
     assert response.status_code == 400, f"Expected 400 VALIDATION_ERROR, got {response.status_code}: {response.text}"
-    body = response.json()
-    assert body.get("error_code") == "VALIDATION_ERROR", f"Expected VALIDATION_ERROR envelope, got {body!r}"
+    assert_envelope_shape(response.json(), "VALIDATION_ERROR", recovery="correctable")
+    assert response.json()["errors"][0]["suggestion"] == _BUYING_MODE_SUGGESTIONS[0][1]
+
+
+class TestBuyingModeRejectWireEnvelope:
+    """Cross-mode buying_mode violations reject with the two-layer wire envelope.
+
+    The GetProductsRequest validator raises before _impl; each transport wrapper
+    translates the AdCPValidationError into the spec two-layer envelope carrying the
+    actionable suggestion. IMPL is excluded — it bypasses the wrapper, so there is no
+    wire envelope to assert (wire_error_envelope is None on that transport).
+    """
+
+    @pytest.mark.parametrize("transport", [Transport.MCP, Transport.A2A, Transport.REST])
+    def test_wholesale_with_brief_rejected_with_suggestion(self, env, transport):
+        """wholesale + brief rejects with VALIDATION_ERROR + actionable suggestion at every wire transport."""
+        result = env.call_via(
+            transport,
+            buying_mode="wholesale",
+            brief="display ads",
+            adcp_version="3.0.6",
+        )
+
+        assert result.is_error, f"transport={transport!r} unexpectedly succeeded: {result.payload}"
+        assert_envelope_shape(
+            result.wire_error_envelope,
+            "VALIDATION_ERROR",
+            recovery="correctable",
+            message_substr="brief must not be provided when buying_mode is 'wholesale'",
+        )
+        assert result.wire_error_envelope["errors"][0]["suggestion"] == _BUYING_MODE_SUGGESTIONS[4][1]

@@ -204,7 +204,6 @@ def when_send_get_products_with_invalid_fields(ctx: dict, invalid_fields: str) -
 def then_response_has_products_array(ctx: dict) -> None:
     resp = ctx.get("response")
     assert resp is not None, f"Expected response, got error: {ctx.get('error')}"
-    assert hasattr(resp, "products"), "Response missing 'products' attribute"
     assert isinstance(resp.products, list), f"Expected products to be a list, got {type(resp.products)}"
 
 
@@ -246,7 +245,7 @@ def then_brief_relevance_present(ctx: dict) -> None:
     """
     resp = ctx["response"]
     for p in resp.products:
-        assert hasattr(p, "brief_relevance"), f"Product {p.product_id} missing brief_relevance attribute"
+        assert "brief_relevance" in type(p).model_fields, f"Product {p.product_id} missing brief_relevance field"
 
 
 @then("the products should NOT be ranked by relevance (catalog order)")
@@ -289,7 +288,7 @@ def then_response_has_refinement_applied(ctx: dict) -> None:
     resp = ctx["response"]
     assert resp.refinement_applied is not None, "refinement_applied missing on refine response"
     assert isinstance(resp.refinement_applied, list)
-    assert len(resp.refinement_applied) >= 1, "refinement_applied is empty"
+    assert resp.refinement_applied[0].root.status is not None, "first refinement_applied entry missing status"
 
 
 @then('each refinement_applied entry should have a "status" field')
@@ -299,7 +298,6 @@ def then_refinement_entries_have_status(ctx: dict) -> None:
         # Each entry is a RefinementApplied root model — fields live on .root
         # (RefinementApplied1/2/3 by scope discriminator).
         inner = getattr(entry, "root", entry)
-        assert getattr(inner, "status", None) is not None, "refinement_applied entry missing status"
         # Status is an enum; .value is the string per AdCP spec
         status_val = inner.status.value if hasattr(inner.status, "value") else inner.status
         assert status_val in {"applied", "partial", "unable"}, f"Invalid status: {status_val!r}"

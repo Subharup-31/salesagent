@@ -374,17 +374,19 @@ def _check_domain_validity(brand_domain: str) -> list[Any] | None:
     """Check if the brand domain is valid for account provisioning.
 
     Returns a list of Error objects if invalid, None if valid.
-    Reserved TLDs (.test, .invalid, .example, .localhost) are rejected in
-    production. Non-production environments allow them so AdCP compliance
-    storyboards — whose fixtures provision ``*.example`` accounts per RFC 2606 —
-    can run; the guard exists to stop a real production account being backed by a
-    documentation/test domain, which is only a concern in production.
+
+    Reserved TLDs (.test, .invalid, .example, .localhost) are rejected by default — a
+    real account must not be backed by a documentation/test domain. The guard is ON in
+    production, dev, and the test suite (the BR-UC-011 partial-failure scenario
+    provisions ``invalid-brand.test`` and asserts it fails). The AdCP compliance
+    storyboards provision ``*.example`` fixtures per RFC 2606, so only the storyboard CI
+    stack opts out via the ADCP_ALLOW_RESERVED_BRAND_TLDS env flag.
     """
+    import os
+
     from adcp.types import Error
 
-    from src.core.config import is_production
-
-    if not is_production():
+    if os.environ.get("ADCP_ALLOW_RESERVED_BRAND_TLDS", "").strip().lower() in ("1", "true", "yes"):
         return None
 
     reserved_tlds = {".test", ".invalid", ".example", ".localhost"}

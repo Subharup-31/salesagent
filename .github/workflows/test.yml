@@ -465,6 +465,9 @@ jobs:
         # seeds a default Principal with this token. Must match the value used
         # in the storyboard step below so the SDK's --auth flag authenticates.
         ADCP_AUTH_TOKEN: test123
+        # Allow the @adcp/sdk storyboard's RFC 2606 *.example fixture domains to
+        # provision accounts. Default-off everywhere else so dev/test reject them.
+        ADCP_ALLOW_RESERVED_BRAND_TLDS: "true"
       run: |
         docker compose up -d --wait --wait-timeout 180
 

@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/prebid/salesagent/compare/v1.7.0...v1.8.0) (2026-06-12)
+
+
+### Features
+
+* **bdd:** render UC-011/019/026 feature files to AdCP 3.1 (merge mode) ([4e9c183](https://github.com/prebid/salesagent/commit/4e9c183ec2dec1c34968333ee970def7b28b4e7b))
+* behavioral test foundation for safe refactoring — BDD harness, 10 use cases, 4-transport coverage ([#1335](https://github.com/prebid/salesagent/issues/1335)) ([61f6ad9](https://github.com/prebid/salesagent/commit/61f6ad9a293cf9a1347d3708ed702feedabbe171))
+* **ci:** parallel BDD CI shards with merged coverage (stacked on PR3) ([#1379](https://github.com/prebid/salesagent/issues/1379)) ([19d3efd](https://github.com/prebid/salesagent/commit/19d3efd5499defa5df24714b3ea283a3e00553d1))
+* migrate to adcp 3.12.0 (rc.3 spec alignment) ([#1217](https://github.com/prebid/salesagent/issues/1217)) ([0cf4de7](https://github.com/prebid/salesagent/commit/0cf4de78ae98aee8bc2b9d168be1abb8ada3a23c))
+* round-trip property_list and add collection_list on media-buy ([#1275](https://github.com/prebid/salesagent/issues/1275)) ([#1276](https://github.com/prebid/salesagent/issues/1276)) ([cfb7597](https://github.com/prebid/salesagent/commit/cfb7597da250caa65ab383ecea61f16a24b01f62))
+* upgrade adcp SDK 3.12→4.3 and import protocol metadata ([#1266](https://github.com/prebid/salesagent/issues/1266)) ([5011855](https://github.com/prebid/salesagent/commit/5011855d7610b424b0064ac6c5e678dd0655e70f))
+
+
+### Bug Fixes
+
+* add explicit strict=False to pairwise zip() in uc002 (B905) ([f89201c](https://github.com/prebid/salesagent/commit/f89201cbef74749803e1ecc13158fd86c6e7969e))
+* apply selection_type inference to inventory profile publisher_properties ([#1174](https://github.com/prebid/salesagent/issues/1174)) ([a50ff50](https://github.com/prebid/salesagent/commit/a50ff500788a060a44e6a2274fb7070a51f887cc))
+* **bdd:** add brand+op+sandbox account-resolution boundary branch ([67681ed](https://github.com/prebid/salesagent/commit/67681edc5258204c611a929f05ba8b09cbc8a1fe))
+* **bdd:** add natural_key_sandbox account-resolution Given branch ([26540ea](https://github.com/prebid/salesagent/commit/26540eaf6910b4a5d40a95e77dfc8cae7326bc78))
+* **bdd:** add reach_unit Given parser to stop status-column overflow ([9249071](https://github.com/prebid/salesagent/commit/924907133919aee21875ff60f5769391b5bfd133))
+* **bdd:** parse space-separated status_filter so v3.1 values reach _impl ([0a9612c](https://github.com/prebid/salesagent/commit/0a9612cc4a6c7247f4a0dd323d1570da09274aa5))
+* **bdd:** resolve 'media_buy_ids provided' boundary to an IDs request ([ed9633f](https://github.com/prebid/salesagent/commit/ed9633fc51ae2431e1cab52c25f094db8c52949f))
+* **bdd:** revert too-broad request_params parser; xfail pending_* status filters ([2073994](https://github.com/prebid/salesagent/commit/2073994a98138d8b186bd4df36f535971fcdfca6))
+* bust browser cache on favicon re-upload ([#1255](https://github.com/prebid/salesagent/issues/1255)) ([a50e9b9](https://github.com/prebid/salesagent/commit/a50e9b9a781a1ea69c8dfb851cd62f89528f6c29)), closes [#1254](https://github.com/prebid/salesagent/issues/1254)
+* **ci:** bump authlib 1.6.11 -&gt; 1.7.2 for PYSEC-2026-188 ([7399a77](https://github.com/prebid/salesagent/commit/7399a772dd28ef1005155ab66ea251a0aad62825))
+* **ci:** bump uv 0.11.6 -&gt; 0.11.15 for GHSA-4gg8-gxpx-9rph ([#1375](https://github.com/prebid/salesagent/issues/1375)) ([e4e8b4d](https://github.com/prebid/salesagent/commit/e4e8b4d6804f1d6a616c206a014041bdcbf7cc05))
+* **ci:** format compile_bdd.py and bump aiohttp 3.13.5 -&gt; 3.14.0 ([081d3e4](https://github.com/prebid/salesagent/commit/081d3e4d366368004b31e8f62d573295092356cd))
+* **ci:** pass GITHUB_TOKEN to pinact to avoid anonymous rate limit ([#1344](https://github.com/prebid/salesagent/issues/1344)) ([5ec6b16](https://github.com/prebid/salesagent/commit/5ec6b1686e67cd07fd037b2be78d1867a5cc57cc))
+* correct GAM service account authorization instructions ([#1218](https://github.com/prebid/salesagent/issues/1218)) ([c2ce35e](https://github.com/prebid/salesagent/commit/c2ce35ee21ec2b47d39a484d431a82d64eadad47))
+* **deps:** bump aiohttp + authlib for CVE-2026-34993 / PYSEC-2026-188 ([#1385](https://github.com/prebid/salesagent/issues/1385)) ([a54b906](https://github.com/prebid/salesagent/commit/a54b906495b405feca2507206a6e095ceb42d186))
+* **deps:** bump mako, python-multipart, urllib3 for security audit ([#1298](https://github.com/prebid/salesagent/issues/1298)) ([a8e6bad](https://github.com/prebid/salesagent/commit/a8e6bad49d3f374f7b03e878316a5bf550f5b948))
+* error-handling cleanup — data loss bugs, silent catches, structural guard ([#1078](https://github.com/prebid/salesagent/issues/1078)) ([#1212](https://github.com/prebid/salesagent/issues/1212)) ([e5886aa](https://github.com/prebid/salesagent/commit/e5886aa7f75ebb2e407c3707b6936893c63b56a5))
+* GAM test-connection must not report success with no accessible network ([#1219](https://github.com/prebid/salesagent/issues/1219)) ([6bf9d6a](https://github.com/prebid/salesagent/commit/6bf9d6a4c844335fd72a62b322f2325f7f3fb11b))
+* gh-[#1264](https://github.com/prebid/salesagent/issues/1264) memory-leak follow-ups and test-suite integrity ([#1334](https://github.com/prebid/salesagent/issues/1334)) ([b47f1b0](https://github.com/prebid/salesagent/commit/b47f1b004d45a401d3c13138b8f89102d0cc4c6a))
+* implement empty BDD Given step bodies ([#1181](https://github.com/prebid/salesagent/issues/1181)) ([#1185](https://github.com/prebid/salesagent/issues/1185)) ([d0b472c](https://github.com/prebid/salesagent/commit/d0b472cb0dd89f1c6e59912aa14b380f5ac32963))
+* lazy-loading inventory tree to prevent OOM on large GAM networks ([#1176](https://github.com/prebid/salesagent/issues/1176)) ([5c0e2c0](https://github.com/prebid/salesagent/commit/5c0e2c04521d835e3638349385a4c057bee5a545))
+* **mcp:** accept creative format relationship filters ([#1331](https://github.com/prebid/salesagent/issues/1331)) ([d8ff48d](https://github.com/prebid/salesagent/commit/d8ff48d8a9877eae5770d909cd8f412cc59817f5))
+* **memory:** leak triage [#3](https://github.com/prebid/salesagent/issues/3) + [#5](https://github.com/prebid/salesagent/issues/5) + [#6](https://github.com/prebid/salesagent/issues/6) + sibling reapers (4 fixes) ([#1264](https://github.com/prebid/salesagent/issues/1264)) ([b57e27d](https://github.com/prebid/salesagent/commit/b57e27dc84113142577e35d3e7c8555bdb6ef84f))
+* normalize domains in property filtering to handle www/m subdomains ([#1207](https://github.com/prebid/salesagent/issues/1207)) ([76701c1](https://github.com/prebid/salesagent/commit/76701c181e3645064d8de775d9511ba93c560ae2))
+* push held-back creatives to GAM after creative approval ([#1038](https://github.com/prebid/salesagent/issues/1038)) ([#1337](https://github.com/prebid/salesagent/issues/1337)) ([04c3af5](https://github.com/prebid/salesagent/commit/04c3af5a9792a5694424038dc107232ee319ae8e))
+* remove invoice_recipient from UpdateMediaBuyRequest ([717f5a7](https://github.com/prebid/salesagent/commit/717f5a767073f2b7cc69a8748274668b8cd26547))
+* replace broken adcontextprotocol.org auth setup guide link ([#1252](https://github.com/prebid/salesagent/issues/1252)) ([#1253](https://github.com/prebid/salesagent/issues/1253)) ([beeff5c](https://github.com/prebid/salesagent/commit/beeff5ca3f8ac0dcbac9a6b5abd43b9bc691df24))
+* restore AdCPValidationError import lost in merge auto-resolution ([af39e87](https://github.com/prebid/salesagent/commit/af39e8739fed704f6b63681ded4c6e76b242e2a9))
+* **schema:** align GetProductsRequest push notification config ([#1393](https://github.com/prebid/salesagent/issues/1393)) ([7cb7e00](https://github.com/prebid/salesagent/commit/7cb7e00bb42325c7b88034a5f8fa953045e3543c))
+* strengthen 131 weak BDD Then step assertions with production-value checks ([78be790](https://github.com/prebid/salesagent/commit/78be790e373b80e292f94f44a250be9592b44601))
+* **test-harness:** implement MediaBuyCreateEnv's missing setup helpers ([#1382](https://github.com/prebid/salesagent/issues/1382)) ([ac1e97a](https://github.com/prebid/salesagent/commit/ac1e97aaef1dff1c7131cb94b479b0e1ae04db1b))
+* **tests:** remove stale strict xfails on get-products schema drift ([#1336](https://github.com/prebid/salesagent/issues/1336)) ([8aebd75](https://github.com/prebid/salesagent/commit/8aebd755d0d4799b8905074b0511ae8350ab3386))
+* use shared _get_error_message() instead of str(error).lower() in uc004 (wdge) ([1629369](https://github.com/prebid/salesagent/commit/16293695580a6095b14700709d692f142ac6bd90))
+* wrap account dict in AccountReference and normalise list-form assignments in sync_creatives ([#1251](https://github.com/prebid/salesagent/issues/1251)) ([14dbefd](https://github.com/prebid/salesagent/commit/14dbefdda32108cc062e16eea4b519a5ae55fa99))
+
+
+### Code Refactoring
+
+* add _require/_require_error helpers + guard ctx['error'] subscripts in BDD Then steps (qlsx-a) ([bbbcda5](https://github.com/prebid/salesagent/commit/bbbcda5e8a281aa407f494b10b9e1bded031d915))
+* extract _assert_exponential_backoff helper in uc004_delivery (vpgh) ([d2f1474](https://github.com/prebid/salesagent/commit/d2f14740f23405d47d067a10e8c45aa9d73fdc8c))
+* extract _assert_format_check_outcome helper in uc006_sync_creatives (ftmy) ([c5ef5c1](https://github.com/prebid/salesagent/commit/c5ef5c19e357aaa81f83476302d9b5a7f914e6d7))
+* extract _get_assignment_from_db helper in uc006_sync_creatives (spug) ([9c2fc60](https://github.com/prebid/salesagent/commit/9c2fc60caae3d46fd91ed16748f78ef185d9bdb6))
+* extract shared helpers in property discovery service ([#1206](https://github.com/prebid/salesagent/issues/1206)) ([426fd97](https://github.com/prebid/salesagent/commit/426fd97e8634ffa9c5e4a6da011cebcd91d421eb))
+* move billing policy and approval mode to tenant configuration ([#1184](https://github.com/prebid/salesagent/issues/1184)) ([#1186](https://github.com/prebid/salesagent/issues/1186)) ([5ef141a](https://github.com/prebid/salesagent/commit/5ef141aaf37b0258a2d5768be93101c2e56b043d))
+* move then_webhook_notification to uc002 domain step file (aya0) ([c7a1527](https://github.com/prebid/salesagent/commit/c7a1527bad3f48fd62fcf92ca997dd103759940d))
+* replace 6 SUSPECT auth_setup_mode tests with endpoint-level coverage ([c05aa70](https://github.com/prebid/salesagent/commit/c05aa707fbe8112f5e9ee5c7f37983f8de93fcc8))
+* replace SUSPECT auth_setup_mode tests with endpoint-level coverage ([f4aa3ad](https://github.com/prebid/salesagent/commit/f4aa3adcc15b30c89b45e7df640c7131bc1f3067))
+
+
+### Documentation
+
+* **adcp:** correct AdCP spec version citations to introduction tags ([#1356](https://github.com/prebid/salesagent/issues/1356)) ([84db058](https://github.com/prebid/salesagent/commit/84db058a54944ab6a24184246cba3ecc4ba5becc))
+
 ## [1.7.0](https://github.com/prebid/salesagent/compare/v1.6.0...v1.7.0) (2026-04-09)
 
 
